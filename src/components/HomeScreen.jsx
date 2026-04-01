@@ -1,19 +1,24 @@
-import SCENES from "../data/scenes";
 import Stars from "./Stars";
 
-export default function HomeScreen({ onSelectScene, onFilage, onFullPlay, progress }) {
+export default function HomeScreen({ actorName, scenes, onSelectScene, onFilage, onBack, onReconfigure, progress }) {
   return (
     <div className="min-h-screen bg-theater-bg p-4 md:p-8">
       <div className="max-w-2xl mx-auto">
+        <button
+          onClick={onBack}
+          className="mb-4 text-theater-partner hover:text-white text-lg cursor-pointer"
+        >
+          ← Retour
+        </button>
         <h1 className="text-3xl md:text-5xl font-extrabold text-center mb-2 slide-up text-white">
-          🎭 Le Théâtre de Léo
+          🎬 Le Théâtre de {actorName}
         </h1>
         <p className="text-center text-theater-partner mb-8 text-lg">
           Apprends tes répliques en t&apos;amusant !
         </p>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
-          {SCENES.map((scene) => {
+          {scenes.map((scene) => {
             const stars = progress[scene.id] || 0;
             return (
               <button
@@ -43,7 +48,7 @@ export default function HomeScreen({ onSelectScene, onFilage, onFullPlay, progre
                       {scene.title}
                     </h2>
                     <p className="text-sm text-theater-partner">
-                      Léo joue :{" "}
+                      {actorName} joue :{" "}
                       <span className="font-semibold text-purple-300">
                         {scene.leoRole}
                       </span>
@@ -70,12 +75,11 @@ export default function HomeScreen({ onSelectScene, onFilage, onFullPlay, progre
           >
             🎬 Mode Filage — Enchaîner toutes les saynètes
           </button>
-
           <button
-            onClick={onFullPlay}
-            className="w-full py-4 rounded-2xl bg-theater-card border border-purple-800/50 hover:border-purple-400 text-white font-bold text-lg transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
+            onClick={onReconfigure}
+            className="w-full py-3 rounded-2xl bg-theater-card border border-purple-800/50 hover:border-purple-400 text-theater-partner hover:text-white font-medium text-sm transition-all hover:scale-[1.01] active:scale-[0.99] cursor-pointer"
           >
-            📖 Lire la pièce complète — 24 saynètes
+            ⚙️ Changer de profil / Modifier les saynètes
           </button>
         </div>
       </div>

@@ -1,20 +1,34 @@
-import { useState, useCallback } from "react";
-import SCENES from "./data/scenes";
+import { useState, useCallback, useMemo } from "react";
+import WelcomeScreen from "./components/WelcomeScreen";
+import ActorSetup from "./components/ActorSetup";
 import HomeScreen from "./components/HomeScreen";
 import ModeSelector from "./components/ModeSelector";
 import RepetitionMode from "./components/RepetitionMode";
 import MicMode from "./components/MicMode";
 import RecordMode from "./components/RecordMode";
 import FullPlayScreen from "./components/FullPlayScreen";
+import { playMusic, stopMusic } from "./utils/music";
+import MusicToggle from "./components/MusicToggle";
+import { getActorConfig } from "./utils/actorConfig";
+import { buildScenesFromConfig } from "./utils/buildScenes";
 
 export default function App() {
-  const [screen, setScreen] = useState("home"); // home | modeSelect | play | fullPlay
+  const [screen, setScreen] = useState("welcome"); // welcome | actorSetup | home | modeSelect | play | fullPlay
+  const [actorConfig, setActorConfig] = useState(getActorConfig);
   const [selectedSceneId, setSelectedSceneId] = useState(null);
   const [selectedMode, setSelectedMode] = useState(null);
   const [progress, setProgress] = useState({}); // { sceneId: stars }
-  const [filageIndex, setFilageIndex] = useState(null); // null = not in filage mode
+  const [filageIndex, setFilageIndex] = useState(null);
 
-  const selectedScene = SCENES.find((s) => s.id === selectedSceneId);
+  const scenes = useMemo(() => buildScenesFromConfig(actorConfig), [actorConfig]);
+  const selectedScene = scenes.find((s) => s.id === selectedSceneId);
+
+  const handleActorDone = useCallback((config) => {
+    setActorConfig(config);
+    setProgress({});
+    playMusic("/Game.mp3", { loop: true, volume: 0.25 });
+    setScreen("home");
+  }, []);
 
   const handleSelectScene = useCallback((id) => {
     setSelectedSceneId(id);
@@ -28,7 +42,6 @@ export default function App() {
 
   const handleBack = useCallback(() => {
     if (screen === "play") {
-      // If in filage mode, go back to home
       if (filageIndex !== null) {
         setFilageIndex(null);
         setScreen("home");
@@ -55,24 +68,24 @@ export default function App() {
   );
 
   const handleFilage = useCallback(() => {
+    if (scenes.length === 0) return;
     setFilageIndex(0);
-    setSelectedSceneId(SCENES[0].id);
+    setSelectedSceneId(scenes[0].id);
     setSelectedMode("repetition");
     setScreen("play");
-  }, []);
+  }, [scenes]);
 
   const handleFilageNext = useCallback(() => {
     const nextIndex = filageIndex + 1;
-    if (nextIndex < SCENES.length) {
+    if (nextIndex < scenes.length) {
       setFilageIndex(nextIndex);
-      setSelectedSceneId(SCENES[nextIndex].id);
+      setSelectedSceneId(scenes[nextIndex].id);
     } else {
       setFilageIndex(null);
       setScreen("home");
     }
-  }, [filageIndex]);
+  }, [filageIndex, scenes]);
 
-  // Wrap onBack for filage: when a scene ends, go to next scene
   const filageBackHandler = useCallback(() => {
     if (filageIndex !== null) {
       handleFilageNext();
@@ -81,28 +94,67 @@ export default function App() {
     }
   }, [filageIndex, handleFilageNext, handleBack]);
 
-  if (screen === "home") {
+  const showMusicToggle = screen !== "welcome" && screen !== "actorSetup";
+  const goWelcome = () => { stopMusic(); setScreen("welcome"); };
+
+  if (screen === "welcome") {
     return (
-      <HomeScreen
-        onSelectScene={handleSelectScene}
-        onFilage={handleFilage}
-        onFullPlay={() => setScreen("fullPlay")}
-        progress={progress}
+      <WelcomeScreen
+        onLecteurs={() => { stopMusic(); setScreen("fullPlay"); }}
+        onActeurs={() => { stopMusic(); playMusic("/Game.mp3", { loop: true, volume: 0.25 }); setScreen("actorSetup"); }}
       />
     );
   }
 
+  if (screen === "actorSetup") {
+    return (
+      <>
+        {showMusicToggle && <MusicToggle />}
+        <ActorSetup
+          initialConfig={actorConfig}
+          onDone={handleActorDone}
+          onBack={goWelcome}
+        />
+      </>
+    );
+  }
+
+  if (screen === "home") {
+    return (
+      <>
+        {showMusicToggle && <MusicToggle />}
+        <HomeScreen
+          actorName={actorConfig.name}
+          scenes={scenes}
+          onSelectScene={handleSelectScene}
+          onFilage={handleFilage}
+          onBack={goWelcome}
+          onReconfigure={() => setScreen("actorSetup")}
+          progress={progress}
+        />
+      </>
+    );
+  }
+
   if (screen === "fullPlay") {
-    return <FullPlayScreen onBack={() => setScreen("home")} />;
+    return (
+      <>
+        {showMusicToggle && <MusicToggle />}
+        <FullPlayScreen onBack={goWelcome} />
+      </>
+    );
   }
 
   if (screen === "modeSelect" && selectedScene) {
     return (
-      <ModeSelector
-        scene={selectedScene}
-        onSelect={handleSelectMode}
-        onBack={() => setScreen("home")}
-      />
+      <>
+        {showMusicToggle && <MusicToggle />}
+        <ModeSelector
+          scene={selectedScene}
+          onSelect={handleSelectMode}
+          onBack={() => setScreen("home")}
+        />
+      </>
     );
   }
 
@@ -110,29 +162,40 @@ export default function App() {
     const backFn = filageIndex !== null ? filageBackHandler : handleBack;
 
     if (selectedMode === "repetition") {
-      return <RepetitionMode scene={selectedScene} onBack={backFn} />;
+      return (
+        <>
+          {showMusicToggle && <MusicToggle />}
+          <RepetitionMode scene={selectedScene} onBack={backFn} />
+        </>
+      );
     }
     if (selectedMode === "micro") {
       return (
-        <MicMode
-          scene={selectedScene}
-          onBack={backFn}
-          onComplete={handleMicComplete}
-        />
+        <>
+          {showMusicToggle && <MusicToggle />}
+          <MicMode
+            scene={selectedScene}
+            onBack={backFn}
+            onComplete={handleMicComplete}
+          />
+        </>
       );
     }
     if (selectedMode === "record") {
-      return <RecordMode scene={selectedScene} onBack={backFn} />;
+      return (
+        <>
+          {showMusicToggle && <MusicToggle />}
+          <RecordMode scene={selectedScene} onBack={backFn} />
+        </>
+      );
     }
   }
 
   // Fallback
   return (
-    <HomeScreen
-      onSelectScene={handleSelectScene}
-      onFilage={handleFilage}
-      onFullPlay={() => setScreen("fullPlay")}
-      progress={progress}
+    <WelcomeScreen
+      onLecteurs={() => { stopMusic(); setScreen("fullPlay"); }}
+      onActeurs={() => { stopMusic(); playMusic("/Game.mp3", { loop: true, volume: 0.25 }); setScreen("actorSetup"); }}
     />
   );
 }
