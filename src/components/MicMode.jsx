@@ -299,8 +299,8 @@ export default function MicMode({ scene, onBack, onComplete }) {
                 {isListening ? "Je t'écoute… parle !" : "Appuie sur le micro et dis ta réplique !"}
               </p>
 
-              {/* Hint + skip buttons */}
-              <div className="flex gap-3 mt-2">
+              {/* Hint + validate + skip buttons */}
+              <div className="flex flex-wrap gap-3 mt-2 justify-center">
                 {hintLevel < 4 && (
                   <button
                     onClick={handleHint}
@@ -309,6 +309,16 @@ export default function MicMode({ scene, onBack, onComplete }) {
                     💡 Un indice
                   </button>
                 )}
+                <button
+                  onClick={() => {
+                    const lineScore = hintLevel === 0 ? 1 : hintLevel <= 2 ? 0.5 : 0;
+                    setScores((prev) => [...prev, lineScore]);
+                    setFeedback({ type: "success", message: "C'est validé ! 👍" });
+                  }}
+                  className="px-5 py-2 rounded-xl bg-green-700 hover:bg-green-600 font-bold transition-all cursor-pointer"
+                >
+                  ✅ C'est bon !
+                </button>
                 {hintLevel >= 4 && (
                   <button
                     onClick={() => {

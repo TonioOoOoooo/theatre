@@ -1,3 +1,22 @@
+const SUBSTITUTIONS = {
+  "michel": "miche",
+  "mish": "miche",
+  "mich": "miche",
+  "miche": "miche",
+  "mishes": "miche",
+  "mish": "miche",
+  "dratte": "drate",
+  "droit": "drate",
+  "drake": "drate",
+  "draft": "drate",
+  "drate": "drate",
+  "drape": "drate",
+  "grate": "drate",
+  "trade": "drate",
+  "date": "drate",
+  "rate": "drate",
+};
+
 export function normalize(str) {
   return str
     .toLowerCase()
@@ -8,9 +27,29 @@ export function normalize(str) {
     .trim();
 }
 
+function applySubstitutions(text) {
+  return text
+    .split(" ")
+    .map((w) => SUBSTITUTIONS[w] || w)
+    .join(" ");
+}
+
+function wordsAreSimilar(a, b) {
+  if (a === b) return true;
+  if (Math.abs(a.length - b.length) > 2) return false;
+  if (a.length < 3 || b.length < 3) return a === b;
+  let diffs = 0;
+  const maxLen = Math.max(a.length, b.length);
+  for (let i = 0; i < maxLen; i++) {
+    if (a[i] !== b[i]) diffs++;
+    if (diffs > 2) return false;
+  }
+  return true;
+}
+
 export function compareTexts(spoken, expected) {
-  const nSpoken = normalize(spoken);
-  const nExpected = normalize(expected);
+  const nSpoken = applySubstitutions(normalize(spoken));
+  const nExpected = applySubstitutions(normalize(expected));
   if (nSpoken === nExpected) return 1.0;
 
   const wordsExpected = nExpected.split(" ").filter((w) => w.length > 0);
@@ -21,7 +60,7 @@ export function compareTexts(spoken, expected) {
   let lastFoundIndex = -1;
   for (const ew of wordsExpected) {
     for (let i = lastFoundIndex + 1; i < wordsSpoken.length; i++) {
-      if (wordsSpoken[i] === ew) {
+      if (wordsSpoken[i] === ew || wordsAreSimilar(wordsSpoken[i], ew)) {
         matched++;
         lastFoundIndex = i;
         break;
