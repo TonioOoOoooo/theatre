@@ -1,8 +1,9 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { SpeechRecognitionAPI, hasSpeechRecognition, speak, hasSpeechSynthesis } from "../utils/speech";
 import { compareTexts, getHint } from "../utils/textCompare";
 import { getEncouragement } from "../utils/encouragements";
-import Confetti from "./Confetti";
+import { playSuccess, playAlmost, playFanfare, playStar } from "../utils/sounds";
+import Confetti, { MiniConfetti } from "./Confetti";
 
 export default function MicMode({ scene, onBack, onComplete }) {
   const [lineIndex, setLineIndex] = useState(0);
@@ -12,6 +13,8 @@ export default function MicMode({ scene, onBack, onComplete }) {
   const [spokenText, setSpokenText] = useState("");
   const [scores, setScores] = useState([]); // per leo-line: 1 (no hint), 0.5 (1-2 hints), 0 (3+ hints)
   const [showConfetti, setShowConfetti] = useState(false);
+  const [showMiniConfetti, setShowMiniConfetti] = useState(false);
+  const [miniConfettiKey, setMiniConfettiKey] = useState(0);
   const recognitionRef = useRef(null);
 
   const line = scene.lines[lineIndex];
@@ -98,6 +101,12 @@ export default function MicMode({ scene, onBack, onComplete }) {
     setIsListening(false);
   }
 
+  function triggerMiniConfetti() {
+    setShowMiniConfetti(true);
+    setMiniConfettiKey((k) => k + 1);
+    setTimeout(() => setShowMiniConfetti(false), 2500);
+  }
+
   function evaluateAnswer(spoken) {
     const score = compareTexts(spoken, line.text);
 
@@ -105,8 +114,11 @@ export default function MicMode({ scene, onBack, onComplete }) {
       const lineScore = hintLevel === 0 ? 1 : hintLevel <= 2 ? 0.5 : 0;
       setScores((prev) => [...prev, lineScore]);
       setFeedback({ type: "success", message: getEncouragement("success") });
+      playSuccess();
+      triggerMiniConfetti();
     } else if (score >= 0.4) {
       setFeedback({ type: "almost", message: getEncouragement("almost") });
+      playAlmost();
     } else {
       setFeedback({ type: "retry", message: getEncouragement("retry") });
     }
@@ -117,47 +129,18 @@ export default function MicMode({ scene, onBack, onComplete }) {
     const stars = computeStars(scores);
     if (onComplete) onComplete(stars);
 
-    return (
-      <div className="min-h-screen bg-theater-bg p-4 flex flex-col items-center justify-center text-white">
-        {showConfetti && <Confetti />}
-        <div className="text-6xl mb-4 bounce-in">🏆</div>
-        <h2 className="text-2xl md:text-3xl font-bold mb-4">Bravo, champion !</h2>
-        <div className="text-4xl mb-4 bounce-in">
-          {Array.from({ length: 3 }, (_, i) => (
-            <span key={i} className={i < stars ? "text-yellow-400" : "text-gray-600"}>
-              ⭐
-            </span>
-          ))}
-        </div>
-        <p className="text-theater-partner mb-6 text-center text-lg">
-          {stars === 3
-            ? "Parfait ! Tu connais tout par cœur ! 🎭"
-            : stars === 2
-            ? "Super travail ! Continue comme ça !"
-            : "Bien joué ! Recommence pour gagner plus d'étoiles !"}
-        </p>
-        <div className="flex gap-4">
-          <button
-            onClick={() => {
-              setLineIndex(0);
-              setScores([]);
-              setFeedback(null);
-              setHintLevel(0);
-              setSpokenText("");
-            }}
-            className="px-6 py-3 rounded-xl bg-purple-600 hover:bg-purple-500 font-bold text-lg transition-all cursor-pointer"
-          >
-            🔁 Recommencer
-          </button>
-          <button
-            onClick={onBack}
-            className="px-6 py-3 rounded-xl bg-gray-700 hover:bg-gray-600 font-bold text-lg transition-all cursor-pointer"
-          >
-            ← Retour
-          </button>
-        </div>
-      </div>
-    );
+    return <FinishScreen
+      stars={stars}
+      onRestart={() => {
+        setLineIndex(0);
+        setScores([]);
+        setFeedback(null);
+        setHintLevel(0);
+        setSpokenText("");
+        setShowConfetti(false);
+      }}
+      onBack={onBack}
+    />;
   }
 
   // Auto-show partner lines and didascalies
@@ -213,6 +196,7 @@ export default function MicMode({ scene, onBack, onComplete }) {
   // Leo's turn — mic mode
   return (
     <div className="min-h-screen bg-theater-bg p-4 md:p-8 flex flex-col text-white">
+      {showMiniConfetti && <MiniConfetti key={miniConfettiKey} />}
       <button
         onClick={onBack}
         className="self-start mb-4 text-theater-partner hover:text-white text-lg cursor-pointer"
@@ -314,6 +298,8 @@ export default function MicMode({ scene, onBack, onComplete }) {
                     const lineScore = hintLevel === 0 ? 1 : hintLevel <= 2 ? 0.5 : 0;
                     setScores((prev) => [...prev, lineScore]);
                     setFeedback({ type: "success", message: "C'est validé ! 👍" });
+                    playSuccess();
+                    triggerMiniConfetti();
                   }}
                   className="px-5 py-2 rounded-xl bg-green-700 hover:bg-green-600 font-bold transition-all cursor-pointer"
                 >
@@ -339,6 +325,81 @@ export default function MicMode({ scene, onBack, onComplete }) {
       <p className="text-center text-theater-partner text-sm mt-4">
         Réplique {lineIndex + 1} / {scene.lines.length}
       </p>
+    </div>
+  );
+}
+
+const BRAVO_MESSAGES = [
+  { stars: 3, emoji: "👑", title: "INCROYABLE !", subtitle: "Tu connais TOUT par cœur !", detail: "Tu es un vrai comédien ! 🎭✨" },
+  { stars: 2, emoji: "🏆", title: "SUPER BRAVO !", subtitle: "Tu connais presque tout !", detail: "Encore un petit effort et c'est parfait ! 💪" },
+  { stars: 1, emoji: "🌟", title: "BRAVO !", subtitle: "C'est un bon début !", detail: "Continue à t'entraîner, champion ! 🎭" },
+];
+
+function FinishScreen({ stars, onRestart, onBack }) {
+  const [phase, setPhase] = useState(0); // 0=confetti, 1=title, 2=stars, 3=buttons
+  const msg = BRAVO_MESSAGES.find((m) => m.stars === stars) || BRAVO_MESSAGES[2];
+
+  useEffect(() => {
+    playFanfare();
+    const t1 = setTimeout(() => setPhase(1), 400);
+    const t2 = setTimeout(() => {
+      setPhase(2);
+      playStar();
+    }, 1200);
+    const t3 = setTimeout(() => setPhase(3), 2200);
+    return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); };
+  }, []);
+
+  return (
+    <div className="min-h-screen bg-theater-bg p-4 flex flex-col items-center justify-center text-white overflow-hidden">
+      <Confetti />
+
+      {/* Giant emoji */}
+      <div className={`transition-all duration-700 ${phase >= 0 ? "scale-100 opacity-100" : "scale-0 opacity-0"}`}>
+        <span className="text-8xl md:text-9xl block mb-4 bounce-in">{msg.emoji}</span>
+      </div>
+
+      {/* Title */}
+      <div className={`transition-all duration-700 ${phase >= 1 ? "translate-y-0 opacity-100" : "translate-y-10 opacity-0"}`}>
+        <h1 className="text-4xl md:text-6xl font-extrabold text-center mb-2 bg-gradient-to-r from-yellow-300 via-amber-400 to-orange-400 bg-clip-text text-transparent">
+          {msg.title}
+        </h1>
+        <p className="text-xl md:text-2xl text-center text-white/90 font-bold mb-2">
+          {msg.subtitle}
+        </p>
+        <p className="text-lg text-center text-theater-partner mb-6">
+          {msg.detail}
+        </p>
+      </div>
+
+      {/* Stars with staggered animation */}
+      <div className={`flex gap-3 mb-8 transition-all duration-700 ${phase >= 2 ? "scale-100 opacity-100" : "scale-0 opacity-0"}`}>
+        {Array.from({ length: 3 }, (_, i) => (
+          <span
+            key={i}
+            className={`text-5xl md:text-6xl transition-all ${i < stars ? "bounce-in" : "opacity-30"}`}
+            style={{ animationDelay: `${i * 0.3}s` }}
+          >
+            ⭐
+          </span>
+        ))}
+      </div>
+
+      {/* Buttons */}
+      <div className={`flex gap-4 transition-all duration-700 ${phase >= 3 ? "translate-y-0 opacity-100" : "translate-y-10 opacity-0"}`}>
+        <button
+          onClick={onRestart}
+          className="px-8 py-4 rounded-2xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 font-bold text-lg transition-all cursor-pointer hover:scale-105 active:scale-95"
+        >
+          🔁 Recommencer
+        </button>
+        <button
+          onClick={onBack}
+          className="px-8 py-4 rounded-2xl bg-gray-700 hover:bg-gray-600 font-bold text-lg transition-all cursor-pointer hover:scale-105 active:scale-95"
+        >
+          ← Retour
+        </button>
+      </div>
     </div>
   );
 }
