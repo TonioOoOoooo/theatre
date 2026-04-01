@@ -1,7 +1,7 @@
 import SCENES from "../data/scenes";
 import Stars from "./Stars";
 
-export default function HomeScreen({ onSelectScene, onFilage, progress }) {
+export default function HomeScreen({ onSelectScene, onFilage, onFullPlay, progress }) {
   return (
     <div className="min-h-screen bg-theater-bg p-4 md:p-8">
       <div className="max-w-2xl mx-auto">
@@ -63,12 +63,21 @@ export default function HomeScreen({ onSelectScene, onFilage, progress }) {
           })}
         </div>
 
-        <button
-          onClick={onFilage}
-          className="w-full py-4 rounded-2xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold text-lg transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
-        >
-          🎬 Mode Filage — Enchaîner toutes les saynètes
-        </button>
+        <div className="flex flex-col gap-3">
+          <button
+            onClick={onFilage}
+            className="w-full py-4 rounded-2xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold text-lg transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
+          >
+            🎬 Mode Filage — Enchaîner toutes les saynètes
+          </button>
+
+          <button
+            onClick={onFullPlay}
+            className="w-full py-4 rounded-2xl bg-theater-card border border-purple-800/50 hover:border-purple-400 text-white font-bold text-lg transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
+          >
+            📖 Lire la pièce complète — 24 saynètes
+          </button>
+        </div>
       </div>
     </div>
   );

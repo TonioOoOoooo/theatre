@@ -5,9 +5,10 @@ import ModeSelector from "./components/ModeSelector";
 import RepetitionMode from "./components/RepetitionMode";
 import MicMode from "./components/MicMode";
 import RecordMode from "./components/RecordMode";
+import FullPlayScreen from "./components/FullPlayScreen";
 
 export default function App() {
-  const [screen, setScreen] = useState("home"); // home | modeSelect | play
+  const [screen, setScreen] = useState("home"); // home | modeSelect | play | fullPlay
   const [selectedSceneId, setSelectedSceneId] = useState(null);
   const [selectedMode, setSelectedMode] = useState(null);
   const [progress, setProgress] = useState({}); // { sceneId: stars }
@@ -85,9 +86,14 @@ export default function App() {
       <HomeScreen
         onSelectScene={handleSelectScene}
         onFilage={handleFilage}
+        onFullPlay={() => setScreen("fullPlay")}
         progress={progress}
       />
     );
+  }
+
+  if (screen === "fullPlay") {
+    return <FullPlayScreen onBack={() => setScreen("home")} />;
   }
 
   if (screen === "modeSelect" && selectedScene) {
@@ -125,6 +131,7 @@ export default function App() {
     <HomeScreen
       onSelectScene={handleSelectScene}
       onFilage={handleFilage}
+      onFullPlay={() => setScreen("fullPlay")}
       progress={progress}
     />
   );
